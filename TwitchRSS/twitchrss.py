@@ -106,12 +106,13 @@ class RSSVoDServer(webapp2.RequestHandler):
             if vods_info['videos'] is not None:
                 for vod in vods_info['videos']:
                     item = {}
-                    item["title"] = vod['title']
                     link = ""
                     if vod["status"] == "recording":
                         link = "http://www.twitch.tv/%s" % channel_name
+                        item["title"] = "%s - LIVE" % vod['title']
                     else:
                         link = vod['url']
+                        item["title"] = vod['title']
                     item["link"] = link
                     item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['preview'])
                     d = datetime.datetime.strptime(vod['recorded_at'], '%Y-%m-%dT%H:%M:%SZ')
