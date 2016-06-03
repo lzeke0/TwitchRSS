@@ -1,5 +1,5 @@
 #
-# Copyright 2015 Laszlo Zeke
+# Copyright 2016 Laszlo Zeke
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import logging
 from feedformatter import Feed
 from google.appengine.api import memcache
 
+TWITCH_CLIENT_ID = 'Insert_key_here'
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
@@ -84,7 +85,11 @@ class RSSVoDServer(webapp2.RequestHandler):
     @staticmethod
     def fetch_json(channel):
         url = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcasts=true' % channel
-        request = urllib2.Request(url,headers={'Accept':'application/vnd.twitchtv.v3+json'})
+        headers = {
+            'Accept': 'application/vnd.twitchtv.v3+json',
+            'Client-ID': TWITCH_CLIENT_ID
+        }
+        request = urllib2.Request(url, headers=headers)
         try:
             result = urllib2.urlopen(request)
             logging.debug('Fetch from twitch for %s with code %s' % (channel, result.getcode()))

@@ -1,5 +1,5 @@
-application: twitchrss-app-engine
-version: 1
+application: twitchrss
+version: a002
 runtime: python27
 api_version: 1
 threadsafe: true
