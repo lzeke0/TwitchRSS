@@ -66,6 +66,9 @@ class RSSVoDServer(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/xhtml+xml'
         self.response.write(rss_data)
 
+    def head(self,channel):
+        self.get(channel)
+
     def fetch_userid(self, channel_name):
         return self.fetch_or_cache_object(channel_name, USERIDCACHE_PREFIX, USERID_URL_TEMPLATE, USERIDCACHE_LIFETIME)
 
