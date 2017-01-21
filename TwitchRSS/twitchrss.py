@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Laszlo Zeke
+# Copyright 2017, 2016 Laszlo Zeke
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,13 @@ from feedformatter import Feed
 from google.appengine.api import memcache
 
 TWITCH_CLIENT_ID = 'Insert_key_here'
+VODCACHE_PREFIX = 'vodcache'
+USERIDCACHE_PREFIX = 'userid'
+VOD_URL_TEMPLATE = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcast_type=archive,highlight,upload'
+USERID_URL_TEMPLATE = 'https://api.twitch.tv/kraken/users?login=%s'
+VODCACHE_LIFETIME = 120
+USERIDCACHE_LIFETIME = 0  # No expire
+
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
@@ -51,22 +58,33 @@ class MainPage(webapp2.RequestHandler):
 
 class RSSVoDServer(webapp2.RequestHandler):
     def get(self, channel):
-        channel_json = self.lookup_cache(channel)
-        if channel_json == '':
-            channel_json = self.fetch_json(channel)
-            if channel_json == '':
-                self.abort(404)
-            else:
-                self.store_cache(channel, channel_json)
-
+        userid_json = self.fetch_userid(channel)
+        (channel_display_name, channel_id) = self.extract_userid(json.loads(userid_json))
+        channel_json = self.fetch_vods(channel_id)
         decoded_json = json.loads(channel_json)
-        rss_data = self.construct_rss(channel, decoded_json)
+        rss_data = self.construct_rss(channel, decoded_json, channel_display_name)
         self.response.headers['Content-Type'] = 'application/xhtml+xml'
         self.response.write(rss_data)
 
+    def fetch_userid(self, channel_name):
+        return self.fetch_or_cache_object(channel_name, USERIDCACHE_PREFIX, USERID_URL_TEMPLATE, USERIDCACHE_LIFETIME)
+
+    def fetch_vods(self, channel_id):
+        return self.fetch_or_cache_object(channel_id, VODCACHE_PREFIX, VOD_URL_TEMPLATE, VODCACHE_LIFETIME)
+
+    def fetch_or_cache_object(self, channel, key_prefix, url_template, cache_time):
+        json_data = self.lookup_cache(channel, key_prefix)
+        if json_data == '':
+            json_data = self.fetch_json(channel, url_template)
+            if json_data == '':
+                self.abort(404)
+            else:
+                self.store_cache(channel, json_data, key_prefix, cache_time)
+        return json_data
+
     @staticmethod
-    def lookup_cache(channel_name):
-        cached_data = memcache.get('vodcache:%s' % channel_name)
+    def lookup_cache(channel_name, key_prefix):
+        cached_data = memcache.get('%s:v5:%s' % (key_prefix, channel_name))
         if cached_data is not None:
             logging.debug('Cache hit for %s' % channel_name)
             return cached_data
@@ -75,43 +93,58 @@ class RSSVoDServer(webapp2.RequestHandler):
             return ''
 
     @staticmethod
-    def store_cache(channel_name, data):
+    def store_cache(channel_name, data, key_prefix, cache_lifetime):
         try:
             logging.debug('Cached data for %s' % channel_name)
-            memcache.set('vodcache:%s' % channel_name, data, 120)
-        except:
+            memcache.set('%s:v5:%s' % (key_prefix, channel_name), data, cache_lifetime)
+        except BaseException as e:
+            logging.warning('Memcache exception: %s' % e)
             return
 
     @staticmethod
-    def fetch_json(channel):
-        url = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcasts=true' % channel
+    def fetch_json(id, url_template):
+        url = url_template % id
         headers = {
-            'Accept': 'application/vnd.twitchtv.v3+json',
+            'Accept': 'application/vnd.twitchtv.v5+json',
             'Client-ID': TWITCH_CLIENT_ID
         }
         request = urllib2.Request(url, headers=headers)
         try:
             result = urllib2.urlopen(request)
-            logging.debug('Fetch from twitch for %s with code %s' % (channel, result.getcode()))
+            logging.debug('Fetch from twitch for %s with code %s' % (id, result.getcode()))
             return result.read()
-        except urllib2.URLError, e:
+        except urllib2.URLError as e:
+            logging.warning("Fetch exception caught: %s" % e)
             return ''
 
-    def construct_rss(self, channel_name, vods_info):
+    def extract_userid(self, user_info):
+        userlist = user_info.get('users')
+        if userlist is None or len(userlist) < 1:
+            logging.info('No such user found.')
+            self.abort(404)
+        # Get the first id in the list
+        userid = userlist[0].get('_id')
+        username = userlist[0].get('display_name')
+        if username and userid:
+            return username, userid
+        else:
+            logging.warning('Userid is not found in %s' % user_info)
+            self.abort(404)
+
+    def construct_rss(self, channel_name, vods_info, display_name):
         feed = Feed()
 
         # Set the feed/channel level properties
-        feed.feed["title"] = "%s's Twitch video RSS" % channel_name
+        feed.feed["title"] = "%s's Twitch video RSS" % display_name
         feed.feed["link"] = "https://twitchrss.appspot.com/"
         feed.feed["author"] = "Twitch RSS Gen"
-        feed.feed["description"] = "The RSS Feed of %s's videos on Twitch" % channel_name
+        feed.feed["description"] = "The RSS Feed of %s's videos on Twitch" % display_name
 
         # Create an item
         try:
             if vods_info['videos'] is not None:
                 for vod in vods_info['videos']:
                     item = {}
-                    link = ""
                     if vod["status"] == "recording":
                         link = "http://www.twitch.tv/%s" % channel_name
                         item["title"] = "%s - LIVE" % vod['title']
@@ -119,15 +152,18 @@ class RSSVoDServer(webapp2.RequestHandler):
                         link = vod['url']
                         item["title"] = vod['title']
                     item["link"] = link
-                    item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['preview'])
-                    d = datetime.datetime.strptime(vod['recorded_at'], '%Y-%m-%dT%H:%M:%SZ')
+                    item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['preview']['large'])
+                    if vod.get('description_html'):
+                        item["description"] += "<br/>" + vod['description_html']
+                    d = datetime.datetime.strptime(vod['created_at'], '%Y-%m-%dT%H:%M:%SZ')
                     item["pubDate"] = d.timetuple()
                     item["guid"] = vod['_id']
-                    if vod["status"] == "recording": # To show a different news item when live is over
+                    if vod["status"] == "recording":  # To show a different news item when recording is over
                         item["guid"] += "_live"
                     item["ttl"] = '10'
                     feed.items.append(item)
-        except KeyError:
+        except KeyError as e:
+            logging.warning('Issue with json: %s\nException: %s' % (vods_info, e))
             self.abort(404)
 
         return feed.format_rss2_string()

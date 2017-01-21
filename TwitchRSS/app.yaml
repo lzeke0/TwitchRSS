@@ -1,9 +1,10 @@
-application: twitchrss
-version: a002
 runtime: python27
-api_version: 1
 threadsafe: true
 
 handlers:
+- url: /favicon\.ico
+  static_files: favicon.ico
+  upload: favicon\.ico
+
 - url: /.*
   script: twitchrss.app
