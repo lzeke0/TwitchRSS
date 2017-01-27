@@ -112,13 +112,16 @@ class RSSVoDServer(webapp2.RequestHandler):
             'Client-ID': TWITCH_CLIENT_ID
         }
         request = urllib2.Request(url, headers=headers)
-        try:
-            result = urllib2.urlopen(request)
-            logging.debug('Fetch from twitch for %s with code %s' % (id, result.getcode()))
-            return result.read()
-        except urllib2.URLError as e:
-            logging.warning("Fetch exception caught: %s" % e)
-            return ''
+        retries = 0
+        while retries < 3:
+            try:
+                result = urllib2.urlopen(request, timeout=3)
+                logging.debug('Fetch from twitch for %s with code %s' % (id, result.getcode()))
+                return result.read()
+            except BaseException as e:
+                logging.warning("Fetch exception caught: %s" % e)
+                retries += 1
+        return ''
 
     def extract_userid(self, user_info):
         userlist = user_info.get('users')
