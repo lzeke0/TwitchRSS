@@ -154,6 +154,7 @@ class RSSVoDServer(webapp2.RequestHandler):
                     if vod["status"] == "recording":
                         link = "http://www.twitch.tv/%s" % channel_name
                         item["title"] = "%s - LIVE" % vod['title']
+                        item["category"] = "live"
                     else:
                         link = vod['url']
                         item["title"] = vod['title']
