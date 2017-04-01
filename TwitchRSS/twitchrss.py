@@ -157,6 +157,7 @@ class RSSVoDServer(webapp2.RequestHandler):
                     else:
                         link = vod['url']
                         item["title"] = vod['title']
+                        item["category"] = vod['broadcast_type']
                     item["link"] = link
                     item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['preview']['large'])
                     if vod.get('description_html'):
