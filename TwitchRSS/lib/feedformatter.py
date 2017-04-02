@@ -177,7 +177,7 @@ def _format_datetime(feed_type, time):
 
     # Then, convert that to the appropriate string
     if feed_type is "rss2":
-        return strftime("%a, %d %b %Y %H:%M:%S UTC", time)
+        return strftime("%a, %d %b %Y %H:%M:%S UT", time)
     elif feed_type is "atom":
         return strftime("%Y-%m-%dT%H:%M:%S", time) + _get_tz_offset();
 
