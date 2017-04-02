@@ -64,7 +64,7 @@ class RSSVoDServer(webapp2.RequestHandler):
         channel_json = self.fetch_vods(channel_id)
         decoded_json = json.loads(channel_json)
         rss_data = self.construct_rss(channel, decoded_json, channel_display_name)
-        self.response.headers['Content-Type'] = 'application/xhtml+xml'
+        self.response.headers['Content-Type'] = 'application/rss+xml'
         self.response.write(rss_data)
 
     def head(self,channel):
