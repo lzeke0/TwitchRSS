@@ -257,7 +257,13 @@ def _add_subelem(root_element, name, value):
             for key in value:
                 _add_subelem(subElem, key, value[key])
     else:
-        ET.SubElement(root_element, name).text = value
+        if name == "guid" and not value.startswith("http"):
+            el = ET.SubElement(root_element, name)
+            el.text = value
+            el.attrib["isPermaLink"] = "false"
+        else:
+            ET.SubElement(root_element, name).text = value
+
 
 def _stringify(tree, pretty):
 
