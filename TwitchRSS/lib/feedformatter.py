@@ -82,7 +82,8 @@ _rss2_channel_mappings = (
     (("webMaster",), "webmaster"),
     (("image",), "image"),
     (("skipHours",), "skipHours"),
-    (("skipDays",), "skipDays")
+    (("skipDays",), "skipDays"),
+    (("ttl",), "ttl")
 )
 
 _rss2_item_mappings = (
@@ -92,8 +93,7 @@ _rss2_item_mappings = (
     (("guid", "id"), "guid"),
     (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda(x): _format_datetime("rss2",x)),
     (("category",), "category"),
-    (("author",), "author", lambda(x): _rssify_author(x)),
-    (("ttl",), "ttl")
+    (("author",), "author", lambda(x): _rssify_author(x))
 )
 
 # Atom 1.0 ----------

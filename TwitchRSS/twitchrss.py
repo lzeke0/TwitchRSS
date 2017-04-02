@@ -146,6 +146,7 @@ class RSSVoDServer(webapp2.RequestHandler):
         feed.feed["link"] = "https://twitchrss.appspot.com/"
         feed.feed["author"] = "Twitch RSS Gen"
         feed.feed["description"] = "The RSS Feed of %s's videos on Twitch" % display_name
+        feed.feed["ttl"] = '10'
 
         # Create an item
         try:
@@ -169,7 +170,6 @@ class RSSVoDServer(webapp2.RequestHandler):
                     item["guid"] = vod['_id']
                     if vod["status"] == "recording":  # To show a different news item when recording is over
                         item["guid"] += "_live"
-                    item["ttl"] = '10'
                     feed.items.append(item)
         except KeyError as e:
             logging.warning('Issue with json: %s\nException: %s' % (vods_info, e))
