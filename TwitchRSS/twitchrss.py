@@ -22,8 +22,9 @@ import datetime
 import logging
 from feedformatter import Feed
 from google.appengine.api import memcache
+from app_id import TWITCH_CLIENT_ID
 
-TWITCH_CLIENT_ID = 'Insert_key_here'
+
 VODCACHE_PREFIX = 'vodcache'
 USERIDCACHE_PREFIX = 'userid'
 VOD_URL_TEMPLATE = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcast_type=archive,highlight,upload'
