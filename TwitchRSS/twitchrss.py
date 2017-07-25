@@ -29,7 +29,7 @@ VODCACHE_PREFIX = 'vodcache'
 USERIDCACHE_PREFIX = 'userid'
 VOD_URL_TEMPLATE = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcast_type=archive,highlight,upload&limit=5'
 USERID_URL_TEMPLATE = 'https://api.twitch.tv/kraken/users?login=%s'
-VODCACHE_LIFETIME = 120
+VODCACHE_LIFETIME = 600
 USERIDCACHE_LIFETIME = 0  # No expire
 
 
