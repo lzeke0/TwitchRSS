@@ -6,6 +6,9 @@ The engine is webapp2.
 A running version can be tried out at: 
 https://twitchrss.appspot.com/vod/twitch
 
+There is also a VOD only endpoint if you don't want to see ongoing streams which are known to break some readers:
+https://twitchrss.appspot.com/vodonly/twitch
+
 ### Deployment
 See how to deploy on [Google App Engine](https://cloud.google.com/appengine/docs/python/gettingstartedpython27/introduction).
 

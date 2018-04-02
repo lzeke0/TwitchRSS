@@ -48,6 +48,7 @@ class MainPage(webapp2.RequestHandler):
                 <p style="font-family: helvetica; font-size:12pt; padding: 20px;">
                     You can get RSS of broadcasts by subscribing to https://twitchrss.appspot.com/vod/&lt;channel name&gt;<br/>
                     For example: <a href="https://twitchrss.appspot.com/vod/riotgames">https://twitchrss.appspot.com/vod/riotgames</a><br/><br/>
+                    You can use the /vodonly handle to get only vods without ongoing streams.
                     Not endorsed by Twitch.tv, just a fun project.<br/>
                     <a href="https://github.com/lzeke0/TwitchRSS">Project home</a>
                 </p>
@@ -59,11 +60,14 @@ class MainPage(webapp2.RequestHandler):
 
 class RSSVoDServer(webapp2.RequestHandler):
     def get(self, channel):
+	self._get_inner(channel)
+
+    def _get_inner(self, channel, add_live=True):
         userid_json = self.fetch_userid(channel)
         (channel_display_name, channel_id) = self.extract_userid(json.loads(userid_json))
         channel_json = self.fetch_vods(channel_id)
         decoded_json = json.loads(channel_json)
-        rss_data = self.construct_rss(channel, decoded_json, channel_display_name)
+        rss_data = self.construct_rss(channel, decoded_json, channel_display_name, add_live)
         self.response.headers['Content-Type'] = 'application/rss+xml'
         self.response.write(rss_data)
 
@@ -78,9 +82,9 @@ class RSSVoDServer(webapp2.RequestHandler):
 
     def fetch_or_cache_object(self, channel, key_prefix, url_template, cache_time):
         json_data = self.lookup_cache(channel, key_prefix)
-        if json_data == '':
+        if not json_data:
             json_data = self.fetch_json(channel, url_template)
-            if json_data == '':
+            if not json_data:
                 self.abort(404)
             else:
                 self.store_cache(channel, json_data, key_prefix, cache_time)
@@ -126,7 +130,7 @@ class RSSVoDServer(webapp2.RequestHandler):
 
     def extract_userid(self, user_info):
         userlist = user_info.get('users')
-        if userlist is None or len(userlist) < 1:
+        if not userlist:
             logging.info('No such user found.')
             self.abort(404)
         # Get the first id in the list
@@ -138,7 +142,7 @@ class RSSVoDServer(webapp2.RequestHandler):
             logging.warning('Userid is not found in %s' % user_info)
             self.abort(404)
 
-    def construct_rss(self, channel_name, vods_info, display_name):
+    def construct_rss(self, channel_name, vods_info, display_name, add_live=True):
         feed = Feed()
 
         # Set the feed/channel level properties
@@ -150,10 +154,12 @@ class RSSVoDServer(webapp2.RequestHandler):
 
         # Create an item
         try:
-            if vods_info['videos'] is not None:
+            if vods_info['videos']:
                 for vod in vods_info['videos']:
                     item = {}
                     if vod["status"] == "recording":
+                        if not add_live:
+                            continue
                         link = "http://www.twitch.tv/%s" % channel_name
                         item["title"] = "%s - LIVE" % vod['title']
                         item["category"] = "live"
@@ -177,7 +183,13 @@ class RSSVoDServer(webapp2.RequestHandler):
 
         return feed.format_rss2_string()
 
+class RSSVoDServerOnlyVoD(RSSVoDServer):
+    def get(self, channel):
+	self._get_inner(channel, add_live=False)
+
+
 app = webapp2.WSGIApplication([
     Route('/', MainPage),
-    Route('/vod/<channel:[a-zA-Z0-9_]{4,25}>', RSSVoDServer)
+    Route('/vod/<channel:[a-zA-Z0-9_]{4,25}>', RSSVoDServer),
+    Route('/vodonly/<channel:[a-zA-Z0-9_]{4,25}>', RSSVoDServerOnlyVoD)
 ], debug=False)
