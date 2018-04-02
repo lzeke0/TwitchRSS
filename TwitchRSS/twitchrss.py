@@ -23,6 +23,8 @@ import logging
 from feedformatter import Feed
 from google.appengine.api import memcache
 from app_id import TWITCH_CLIENT_ID
+from StringIO import StringIO
+import gzip
 
 
 VODCACHE_PREFIX = 'vodcache'
@@ -114,7 +116,8 @@ class RSSVoDServer(webapp2.RequestHandler):
         url = url_template % id
         headers = {
             'Accept': 'application/vnd.twitchtv.v5+json',
-            'Client-ID': TWITCH_CLIENT_ID
+            'Client-ID': TWITCH_CLIENT_ID,
+            'Accept-Encoding': 'gzip'
         }
         request = urllib2.Request(url, headers=headers)
         retries = 0
@@ -122,6 +125,11 @@ class RSSVoDServer(webapp2.RequestHandler):
             try:
                 result = urllib2.urlopen(request, timeout=3)
                 logging.debug('Fetch from twitch for %s with code %s' % (id, result.getcode()))
+                if result.info().get('Content-Encoding') == 'gzip':
+                    logging.debug('Fetched gzip content')
+                    buf = StringIO(result.read())
+                    f = gzip.GzipFile(fileobj=buf)
+                    return f.read()
                 return result.read()
             except BaseException as e:
                 logging.warning("Fetch exception caught: %s" % e)
