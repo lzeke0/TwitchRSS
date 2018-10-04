@@ -177,6 +177,8 @@ class RSSVoDServer(webapp2.RequestHandler):
                         item["category"] = vod['broadcast_type']
                     item["link"] = link
                     item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['preview']['large'])
+                    if vod.get('game'):
+                        item["description"] += "<br/>" + vod['game']
                     if vod.get('description_html'):
                         item["description"] += "<br/>" + vod['description_html']
                     d = datetime.datetime.strptime(vod['created_at'], '%Y-%m-%dT%H:%M:%SZ')
