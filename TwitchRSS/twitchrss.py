@@ -200,6 +200,6 @@ class RSSVoDServerOnlyVoD(RSSVoDServer):
 
 app = webapp2.WSGIApplication([
     Route('/', MainPage),
-    Route('/vod/<channel:[a-zA-Z0-9_]{4,25}>', RSSVoDServer),
-    Route('/vodonly/<channel:[a-zA-Z0-9_]{4,25}>', RSSVoDServerOnlyVoD)
+    Route('/vod/<channel:[a-zA-Z0-9_]{2,25}>', RSSVoDServer),
+    Route('/vodonly/<channel:[a-zA-Z0-9_]{2,25}>', RSSVoDServerOnlyVoD)
 ], debug=False)
