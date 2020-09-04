@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from flask import abort, Flask
+from flask import abort, Flask, request
 import urllib
 import json
 import datetime
@@ -72,6 +72,11 @@ def get_inner(channel, add_live=True):
     decoded_json = json.loads(channel_json)
     rss_data = construct_rss(channel, decoded_json, channel_display_name, add_live)
     headers = {'Content-Type': 'application/rss+xml'}
+
+    if 'gzip' in request.headers.get("Accept-Encoding", ''):
+        headers['Content-Encoding'] = 'gzip'
+        rss_data = gzip.compress(rss_data)
+
     return rss_data, headers
 
 
@@ -100,9 +105,7 @@ def fetch_json(id, url_template):
             logging.debug('Fetch from twitch for %s with code %s' % (id, result.getcode()))
             if result.info().get('Content-Encoding') == 'gzip':
                 logging.debug('Fetched gzip content')
-                buf = BytesIO(result.read())
-                f = gzip.GzipFile(fileobj=buf)
-                return f.read()
+                return gzip.decompress(result.read())
             return result.read()
         except Exception as e:
             logging.warning("Fetch exception caught: %s" % e)
