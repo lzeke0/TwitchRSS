@@ -1,6 +1,6 @@
 runtime: python38
 
-entrypoint: gunicorn -b :$PORT twitchrss:app
+entrypoint: gunicorn -b :$PORT -k gthread --threads 2 twitchrss:app
 
 env_variables:
   TWITCH_CLIENT_ID: __INSERT_TWITCH_CLIENT_ID_HERE__

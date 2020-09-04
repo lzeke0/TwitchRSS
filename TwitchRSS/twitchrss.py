@@ -22,14 +22,14 @@ import logging
 import re
 from os import environ
 from feedformatter import Feed
-from expiringdict import ExpiringDict
+from cachetools import cached, TTLCache, LRUCache
 from io import BytesIO
 import gzip
 
 
 VOD_URL_TEMPLATE = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcast_type=archive,highlight,upload&limit=10'
 USERID_URL_TEMPLATE = 'https://api.twitch.tv/kraken/users?login=%s'
-VODCACHE_LIFETIME = 600
+VODCACHE_LIFETIME = 10 * 60
 USERIDCACHE_LIFETIME = 24 * 60 * 60
 CHANNEL_FILTER = re.compile("^[a-zA-Z0-9_]{2,25}$")
 TWITCH_CLIENT_ID = environ.get("TWITCH_CLIENT_ID")
@@ -40,9 +40,6 @@ if not TWITCH_CLIENT_ID:
 
 
 app = Flask(__name__)
-
-vodcache = ExpiringDict(max_len=200, max_age_seconds=VODCACHE_LIFETIME)
-useridcache = ExpiringDict(max_len=1000, max_age_seconds=USERIDCACHE_LIFETIME)
 
 
 @app.route('/vod/<string:channel>', methods=['GET', 'HEAD'])
@@ -63,31 +60,29 @@ def vodonly(channel):
 
 def get_inner(channel, add_live=True):
     userid_json = fetch_userid(channel)
+    if not userid_json:
+        abort(404)
+
     (channel_display_name, channel_id) = extract_userid(json.loads(userid_json))
+
     channel_json = fetch_vods(channel_id)
+    if not channel_json:
+        abort(404)
+
     decoded_json = json.loads(channel_json)
     rss_data = construct_rss(channel, decoded_json, channel_display_name, add_live)
     headers = {'Content-Type': 'application/rss+xml'}
     return rss_data, headers
 
 
+@cached(cache=TTLCache(maxsize=2000, ttl=USERIDCACHE_LIFETIME))
 def fetch_userid(channel_name):
-    return fetch_or_cache_object(channel_name, useridcache, USERID_URL_TEMPLATE)
+    return fetch_json(channel_name, USERID_URL_TEMPLATE)
 
 
+@cached(cache=TTLCache(maxsize=400, ttl=VODCACHE_LIFETIME))
 def fetch_vods(channel_id):
-    return fetch_or_cache_object(channel_id, vodcache, VOD_URL_TEMPLATE)
-
-
-def fetch_or_cache_object(key, cachedict, url_template):
-    json_data = cachedict.get(key)
-    if not json_data:
-        json_data = fetch_json(key, url_template)
-        if not json_data:
-            abort(404)
-        else:
-            cachedict[key] = json_data
-    return json_data
+    return fetch_json(channel_id, VOD_URL_TEMPLATE)
 
 
 def fetch_json(id, url_template):
@@ -112,7 +107,7 @@ def fetch_json(id, url_template):
         except Exception as e:
             logging.warning("Fetch exception caught: %s" % e)
             retries += 1
-    return None
+    abort(503)
 
 
 def extract_userid(user_info):
