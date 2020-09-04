@@ -1,15 +1,21 @@
-runtime: python27
-threadsafe: true
+runtime: python38
+
+entrypoint: gunicorn -b :$PORT twitchrss:app
+
+env_variables:
+  TWITCH_CLIENT_ID: __INSERT_TWITCH_CLIENT_ID_HERE__
 
 handlers:
 - url: /favicon\.ico
   static_files: favicon.ico
   upload: favicon\.ico
 
-- url: /.*
-  script: twitchrss.app
+- url: /
+  static_files: index.html
+  upload: index\.html
+
+- url: /.+
+  script: auto
 
 automatic_scaling:
   max_instances: 1
-  max_idle_instances: 1
-

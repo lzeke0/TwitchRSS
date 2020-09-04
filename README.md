@@ -1,15 +1,16 @@
 ## Twitch RSS Webapp for Google App Engine
 This project is a very small web application for serving RSS feed for broadcasts
-in Twitch. It fetches data from [Twitch API](https://github.com/justintv/twitch-api) and caches in Memcache.
+in Twitch. It fetches data from [Twitch API](https://dev.twitch.tv/docs) and caches in Memcache.
 The engine is webapp2.
 
-A running version can be tried out at: 
+A running version can be tried out at:
 https://twitchrss.appspot.com/vod/twitch
 
 There is also a VOD only endpoint if you don't want to see ongoing streams which are known to break some readers:
 https://twitchrss.appspot.com/vodonly/twitch
 
 ### Deployment
+First you should set your own Twitch API client ID in the app.yaml.
 See how to deploy on [Google App Engine](https://cloud.google.com/appengine/docs/python/gettingstartedpython27/introduction).
 
 ### Other things

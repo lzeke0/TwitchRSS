@@ -1,6 +1,6 @@
 # Feedformatter
 # Copyright (c) 2008, Luke Maurits <luke@maurits.id.au>
-# Copyright (c) 2015, Laszlo Zeke
+# Copyright (c) 2020, Laszlo Zeke
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 
 __version__ = "0.4"
 
-from cStringIO import StringIO
+from io import StringIO
 
 # This "staircase" of import attempts is ugly.  If there's a nicer way to do
 # this, please let me know!
@@ -75,7 +75,7 @@ _rss2_channel_mappings = (
     (("title",), "title"),
     (("link", "url"), "link"),
     (("description", "desc", "summary"), "description"),
-    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda(x): _format_datetime("rss2",x)),
+    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda x: _format_datetime("rss2",x)),
     (("category",), "category"),
     (("language",), "language"),
     (("copyright",), "copyright"),
@@ -91,9 +91,9 @@ _rss2_item_mappings = (
     (("link", "url"), "link"),
     (("description", "desc", "summary"), "description"),
     (("guid", "id"), "guid"),
-    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda(x): _format_datetime("rss2",x)),
+    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda x: _format_datetime("rss2",x)),
     (("category",), "category"),
-    (("author",), "author", lambda(x): _rssify_author(x))
+    (("author",), "author", lambda x: _rssify_author(x))
 )
 
 # Atom 1.0 ----------
@@ -102,19 +102,19 @@ _atom_feed_mappings = (
     (("title",), "title"),
     (("link", "url"), "id"),
     (("description", "desc", "summary"), "subtitle"),
-    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda(x): _format_datetime("atom",x)),
+    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda x: _format_datetime("atom",x)),
     (("category",), "category"),
-    (("author",), "author", lambda(x): _atomise_author(x))
+    (("author",), "author", lambda x: _atomise_author(x))
 )
 
 _atom_item_mappings = (
     (("title",), "title"),
     (("link", "url"), "id"),
-    (("link", "url"), "link", lambda(x): _atomise_link(x)),
+    (("link", "url"), "link", lambda x: _atomise_link(x)),
     (("description", "desc", "summary"), "summary"),
-    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda(x): _format_datetime("atom",x)),
+    (("pubDate", "pubdate", "date", "published", "updated"), "pubDate", lambda x: _format_datetime("atom",x)),
     (("category",), "category"),
-    (("author",), "author", lambda(x): _atomise_author(x))
+    (("author",), "author", lambda x: _atomise_author(x))
 )
 
 def _get_tz_offset():
@@ -146,20 +146,20 @@ def _convert_datetime(time):
     elif type(time) is int or type(time) is float:
         # Assume this is a seconds-since-epoch time
         return localtime(time)
-    elif type(time) is str:    
+    elif type(time) is str:
         if time.isalnum():
             # String is alphanumeric - a time stamp?
             try:
                 return strptime(time, "%a, %d %b %Y %H:%M:%S %Z")
             except ValueError:
-                raise Exception("Unrecongised time format!")        
+                raise Exception("Unrecongised time format!")
         else:
             # Maybe this is a string of an epoch time?
             try:
                 return localtime(float(time))
             except ValueError:
                 # Guess not.
-                raise Exception("Unrecongised time format!")                 
+                raise Exception("Unrecongised time format!")
     else:
         # No idea what this is.  Give up!
         raise Exception("Unrecongised time format!")
@@ -171,7 +171,7 @@ def _format_datetime(feed_type, time):
     used in a validly formatted feed of type feed_type.  Raise an
     Exception if this cannot be done.
     """
-    
+
     # First, convert time into a time structure
     time = _convert_datetime(time)
 
@@ -187,7 +187,7 @@ def _atomise_link(link):
         return dict
     else:
         return {"href" : link}
-        
+
 def _atomise_author(author):
 
     """
@@ -214,7 +214,7 @@ def _rssify_author(author):
     Convert author from whatever it is to a plain old email string for
     use in an RSS 2.0 feed.
     """
-    
+
     if type(author) is dict:
         try:
             return author["email"]
@@ -241,8 +241,8 @@ def _add_subelems(root_element, mappings, dictionary):
                 elif len(mapping) == 3:
                     value = mapping[2](dictionary[key])
                 _add_subelem(root_element, mapping[1], value)
-                break                
-    
+                break
+
 def _add_subelem(root_element, name, value):
 
     if value is None:
@@ -282,7 +282,7 @@ def _stringify(tree, pretty):
 class Feed:
 
     ### INTERNAL METHODS ------------------------------
-    
+
     def __init__(self, feed=None, items=None):
 
         if feed:
@@ -296,7 +296,7 @@ class Feed:
         self.entries = self.items
 
     ### RSS 1.0 STUFF ------------------------------
-        
+
     def validate_rss1(self):
 
         """Raise an InvalidFeedException if the feed cannot be validly
@@ -325,14 +325,14 @@ class Feed:
             if "link" not in item:
                 raise InvalidFeedException("Each item element in an RSS 1.0 "
                 "feed must contain a link subelement")
-        
+
     def format_rss1_string(self, validate=True, pretty=False):
 
         """Format the feed as RSS 1.0 and return the result as a string."""
 
         if validate:
             self.validate_rss1()
-        RSS1root = ET.Element( 'rdf:RDF', 
+        RSS1root = ET.Element( 'rdf:RDF',
             {"xmlns:rdf" : "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
              "xmlns" : "http://purl.org/rss/1.0/"} )
         RSS1channel = ET.SubElement(RSS1root, 'channel',
@@ -394,7 +394,7 @@ class Feed:
         RSS2root = ET.Element( 'rss', {'version':'2.0'} )
         RSS2channel = ET.SubElement( RSS2root, 'channel' )
         _add_subelems(RSS2channel, _rss2_channel_mappings, self.feed)
-        for item in self.items:            
+        for item in self.items:
             RSS2item = ET.SubElement ( RSS2channel, 'item' )
             _add_subelems(RSS2item, _rss2_item_mappings, item)
         return _stringify(RSS2root, pretty=pretty)
@@ -472,11 +472,11 @@ def main():
     item["guid"] = "1234567890"
     feed.items.append(item)
     print("---- RSS 1.0 ----")
-    print feed.format_rss1_string(pretty=True)
+    print(feed.format_rss1_string(pretty=True))
     print("---- RSS 2.0 ----")
-    print feed.format_rss2_string(pretty=True)
+    print(feed.format_rss2_string(pretty=True))
     print("---- Atom 1.0 ----")
-    print feed.format_atom_string(pretty=True)
+    print(feed.format_atom_string(pretty=True))
 
 if __name__ == "__main__":
     main()
