@@ -80,12 +80,12 @@ def get_inner(channel, add_live=True):
     return rss_data, headers
 
 
-@cached(cache=TTLCache(maxsize=2000, ttl=USERIDCACHE_LIFETIME))
+@cached(cache=TTLCache(maxsize=3000, ttl=USERIDCACHE_LIFETIME))
 def fetch_userid(channel_name):
     return fetch_json(channel_name, USERID_URL_TEMPLATE)
 
 
-@cached(cache=TTLCache(maxsize=400, ttl=VODCACHE_LIFETIME))
+@cached(cache=TTLCache(maxsize=500, ttl=VODCACHE_LIFETIME))
 def fetch_vods(channel_id):
     return fetch_json(channel_id, VOD_URL_TEMPLATE)
 
