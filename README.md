@@ -11,7 +11,7 @@ https://twitchrss.appspot.com/vodonly/twitch
 
 ### Deployment
 First you should set your own Twitch API client ID in the app.yaml.
-See how to deploy on [Google App Engine](https://cloud.google.com/appengine/docs/python/gettingstartedpython27/introduction).
+See how to deploy on [Google App Engine](https://cloud.google.com/appengine/docs/standard/python3).
 
 ### Other things
 The project uses a slightly modified [Feedformatter](https://code.google.com/p/feedformatter/) to support
