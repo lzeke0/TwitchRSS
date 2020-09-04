@@ -8,3 +8,8 @@ handlers:
 
 - url: /.*
   script: twitchrss.app
+
+automatic_scaling:
+  max_instances: 1
+  max_idle_instances: 1
+
