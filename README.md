@@ -9,6 +9,10 @@ https://twitchrss.appspot.com/vod/twitch
 There is also a VOD only endpoint if you don't want to see ongoing streams which are known to break some readers:
 https://twitchrss.appspot.com/vodonly/twitch
 
+### Caching requests
+This service caches requests from twitch for 10 minutes meaning that you will only get new answers once in
+10 minutes. Please keep this in mind when polling the service.
+
 ### Deployment
 First you should set your own Twitch API client ID in the app.yaml.
 See how to deploy on [Google App Engine](https://cloud.google.com/appengine/docs/standard/python3).
