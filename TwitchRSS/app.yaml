@@ -1,9 +1,10 @@
 runtime: python38
 
-entrypoint: gunicorn -b :$PORT -k gthread --threads 2 twitchrss:app
+entrypoint: gunicorn -b :$PORT -k gthread --threads 3 twitchrss:app
 
 env_variables:
   TWITCH_CLIENT_ID: __INSERT_TWITCH_CLIENT_ID_HERE__
+  TWITCH_CLIENT_SECRET: __INSERT_TWITCH_CLIENT_SECRET_HERE__
 
 handlers:
 - url: /favicon\.ico

@@ -30,48 +30,43 @@ import urllib
 
 VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=all'
 USERID_URL_TEMPLATE = 'https://api.twitch.tv/helix/users?login=%s'
+AUTH_URL = 'https://id.twitch.tv/oauth2/token'
 VODCACHE_LIFETIME = 10 * 60
 USERIDCACHE_LIFETIME = 24 * 60 * 60
 CHANNEL_FILTER = re.compile("^[a-zA-Z0-9_]{2,25}$")
 TWITCH_CLIENT_ID = environ.get("TWITCH_CLIENT_ID")
-TWITCH_SECRET = environ.get("TWITCH_SECRET")
-TWITCH_OAUTH_TOKEN = ""
-TWITCH_OAUTH_EXPIRE_EPOCH = 0
+TWITCH_CLIENT_SECRET = environ.get("TWITCH_CLIENT_SECRET")
 logging.basicConfig(level=logging.DEBUG if environ.get('DEBUG') else logging.INFO)
 
 if not TWITCH_CLIENT_ID:
-    raise Exception("Twitch API client id is not set.")
-if not TWITCH_SECRET:
+    raise Exception("Twitch API client id env variable not set.")
+if not TWITCH_CLIENT_SECRET:
     raise Exception("Twitch API secret env variable not set.")
 
-
+oauth = {'token': '', 'epoch': 0}
 app = Flask(__name__)
 
 def authorize():
-    global TWITCH_OAUTH_TOKEN
-    global TWITCH_OAUTH_EXPIRE_EPOCH
-
     # return if token has not expired
-    if (TWITCH_OAUTH_EXPIRE_EPOCH >= round(time.time())):
-        return
+    if (oauth['epoch'] >= round(time.time())):
+        return oauth['token']
 
     logging.debug("requesting a new oauth token")
     data = {
         'client_id': TWITCH_CLIENT_ID,
-        'client_secret': TWITCH_SECRET,
+        'client_secret': TWITCH_CLIENT_SECRET,
         'grant_type': 'client_credentials',
     }
-    url = 'https://id.twitch.tv/oauth2/token'
-    request = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode("utf-8"), method='POST')
+    request = urllib.request.Request(AUTH_URL, data=urllib.parse.urlencode(data).encode("utf-8"), method='POST')
     retries = 0
     while retries < 3:
         try:
             result = urllib.request.urlopen(request, timeout=3)
             r = json.loads(result.read().decode("utf-8"))
-            TWITCH_OAUTH_TOKEN = r['access_token']
-            TWITCH_OAUTH_EXPIRE_EPOCH = int(r['expires_in']) + round(time.time())
+            oauth['token'] = r['access_token']
+            oauth['epoch'] = int(r['expires_in']) + round(time.time()) - 1
             logging.debug("oauth token aquired")
-            return
+            return oauth['token']
         except Exception as e:
             logging.warning("Fetch exception caught: %s" % e)
             retries += 1
@@ -94,16 +89,16 @@ def vodonly(channel):
 
 
 def get_inner(channel, add_live=True):
-    userid_json = fetch_userid(channel)
+    userid_json = fetch_user(channel)
     if not userid_json:
         abort(404)
 
-    (channel_display_name, channel_id) = extract_userid(json.loads(userid_json)['data'][0])
-
+    (channel_display_name, channel_id) = extract_userid(userid_json)
+    logging.debug("Start fetching vods")
     channel_json = fetch_vods(channel_id)
     if not channel_json:
         abort(404)
-
+    logging.debug("Finish fetching vods")
     decoded_json = json.loads(channel_json)['data']
     rss_data = construct_rss(channel, decoded_json, channel_display_name, add_live)
     headers = {'Content-Type': 'application/rss+xml'}
@@ -116,8 +111,9 @@ def get_inner(channel, add_live=True):
 
 
 @cached(cache=TTLCache(maxsize=3000, ttl=USERIDCACHE_LIFETIME))
-def fetch_userid(channel_name):
-    return fetch_json(channel_name, USERID_URL_TEMPLATE)
+def fetch_user(channel_name):
+    data_json = fetch_json(channel_name, USERID_URL_TEMPLATE)
+    return data_json
 
 
 @cached(cache=TTLCache(maxsize=500, ttl=VODCACHE_LIFETIME))
@@ -127,11 +123,11 @@ def fetch_vods(channel_id):
 
 def fetch_json(id, url_template):
     #update the oauth token
-    authorize()
+    token = authorize()
 
     url = url_template % id
     headers = {
-        'Authorization': 'Bearer '+TWITCH_OAUTH_TOKEN,
+        'Authorization': 'Bearer ' + token,
         'Client-Id': TWITCH_CLIENT_ID,
         'Accept-Encoding': 'gzip'
     }
@@ -152,13 +148,12 @@ def fetch_json(id, url_template):
 
 
 def extract_userid(user_info):
+    extracted_data = json.loads(user_info)['data']
     # Get the first id in the list
-    userid = user_info['id']
-    username = user_info['display_name']
-    if username and userid:
-        return username, userid
+    if extracted_data:
+        return extracted_data[0]['display_name'], extracted_data[0]['id']
     else:
-        logging.warning('Userid is not found in %s' % user_info)
+        logging.debug('Userid is not found in %s' % user_info)
         abort(404)
 
 
