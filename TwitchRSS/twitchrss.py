@@ -14,33 +14,68 @@
 # limitations under the License.
 #
 
+from cachetools import cached, TTLCache, LRUCache
+from feedformatter import Feed
 from flask import abort, Flask, request
-import urllib
-import json
+from io import BytesIO
+from os import environ
 import datetime
+import gzip
+import time
+import json
 import logging
 import re
-from os import environ
-from feedformatter import Feed
-from cachetools import cached, TTLCache, LRUCache
-from io import BytesIO
-import gzip
+import urllib
 
 
-VOD_URL_TEMPLATE = 'https://api.twitch.tv/kraken/channels/%s/videos?broadcast_type=archive,highlight,upload&limit=10'
-USERID_URL_TEMPLATE = 'https://api.twitch.tv/kraken/users?login=%s'
+VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=all'
+USERID_URL_TEMPLATE = 'https://api.twitch.tv/helix/users?login=%s'
 VODCACHE_LIFETIME = 10 * 60
 USERIDCACHE_LIFETIME = 24 * 60 * 60
 CHANNEL_FILTER = re.compile("^[a-zA-Z0-9_]{2,25}$")
 TWITCH_CLIENT_ID = environ.get("TWITCH_CLIENT_ID")
+TWITCH_SECRET = environ.get("TWITCH_SECRET")
+TWITCH_OAUTH_TOKEN = ""
+TWITCH_OAUTH_EXPIRE_EPOCH = 0
 logging.basicConfig(level=logging.DEBUG if environ.get('DEBUG') else logging.INFO)
 
 if not TWITCH_CLIENT_ID:
     raise Exception("Twitch API client id is not set.")
+if not TWITCH_SECRET:
+    raise Exception("Twitch API secret env variable not set.")
 
 
 app = Flask(__name__)
 
+def authorize():
+    global TWITCH_OAUTH_TOKEN
+    global TWITCH_OAUTH_EXPIRE_EPOCH
+
+    # return if token has not expired
+    if (TWITCH_OAUTH_EXPIRE_EPOCH >= round(time.time())):
+        return
+
+    logging.debug("requesting a new oauth token")
+    data = {
+        'client_id': TWITCH_CLIENT_ID,
+        'client_secret': TWITCH_SECRET,
+        'grant_type': 'client_credentials',
+    }
+    url = 'https://id.twitch.tv/oauth2/token'
+    request = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode("utf-8"), method='POST')
+    retries = 0
+    while retries < 3:
+        try:
+            result = urllib.request.urlopen(request, timeout=3)
+            r = json.loads(result.read().decode("utf-8"))
+            TWITCH_OAUTH_TOKEN = r['access_token']
+            TWITCH_OAUTH_EXPIRE_EPOCH = int(r['expires_in']) + round(time.time())
+            logging.debug("oauth token aquired")
+            return
+        except Exception as e:
+            logging.warning("Fetch exception caught: %s" % e)
+            retries += 1
+    abort(503)
 
 @app.route('/vod/<string:channel>', methods=['GET', 'HEAD'])
 def vod(channel):
@@ -63,13 +98,13 @@ def get_inner(channel, add_live=True):
     if not userid_json:
         abort(404)
 
-    (channel_display_name, channel_id) = extract_userid(json.loads(userid_json))
+    (channel_display_name, channel_id) = extract_userid(json.loads(userid_json)['data'][0])
 
     channel_json = fetch_vods(channel_id)
     if not channel_json:
         abort(404)
 
-    decoded_json = json.loads(channel_json)
+    decoded_json = json.loads(channel_json)['data']
     rss_data = construct_rss(channel, decoded_json, channel_display_name, add_live)
     headers = {'Content-Type': 'application/rss+xml'}
 
@@ -91,10 +126,13 @@ def fetch_vods(channel_id):
 
 
 def fetch_json(id, url_template):
+    #update the oauth token
+    authorize()
+
     url = url_template % id
     headers = {
-        'Accept': 'application/vnd.twitchtv.v5+json',
-        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': 'Bearer '+TWITCH_OAUTH_TOKEN,
+        'Client-Id': TWITCH_CLIENT_ID,
         'Accept-Encoding': 'gzip'
     }
     request = urllib.request.Request(url, headers=headers)
@@ -114,13 +152,9 @@ def fetch_json(id, url_template):
 
 
 def extract_userid(user_info):
-    userlist = user_info.get('users')
-    if not userlist:
-        logging.info('No such user found.')
-        abort(404)
     # Get the first id in the list
-    userid = userlist[0].get('_id')
-    username = userlist[0].get('display_name')
+    userid = user_info['id']
+    username = user_info['display_name']
     if username and userid:
         return username, userid
     else:
@@ -140,30 +174,38 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
 
     # Create an item
     try:
-        if vods_info['videos']:
-            for vod in vods_info['videos']:
+        if vods_info:
+            for vod in vods_info:
                 item = {}
-                if vod["status"] == "recording":
-                    if not add_live:
-                        continue
-                    link = "http://www.twitch.tv/%s" % channel_name
-                    item["title"] = "%s - LIVE" % vod['title']
-                    item["category"] = "live"
-                else:
-                    link = vod['url']
-                    item["title"] = vod['title']
-                    item["category"] = vod['broadcast_type']
+
+                # @madiele: in twitch new API the current stream now it's not bundled in the same request
+                # maybe to be re-implemented later on
+
+                #if vod["status"] == "recording":
+                #    if not add_live:
+                #        continue
+                #    link = "http://www.twitch.tv/%s" % channel_name
+                #    item["title"] = "%s - LIVE" % vod['title']
+                #    item["category"] = "live"
+                #else:
+                link = vod['url']
+                item["title"] = vod['title']
+                item["category"] = vod['type']
+
                 item["link"] = link
-                item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['preview']['large'])
-                if vod.get('game'):
-                    item["description"] += "<br/>" + vod['game']
-                if vod.get('description_html'):
-                    item["description"] += "<br/>" + vod['description_html']
+                item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['thumbnail_url'].replace("%{width}", "512").replace("%{height}","288"))
+
+                #@madiele: for some reason the new API does not have the game field anymore...
+                #if vod.get('game'):
+                #    item["description"] += "<br/>" + vod['game']
+
+                if vod.get('description'):
+                    item["description"] += "<br/>" + vod['description']
                 d = datetime.datetime.strptime(vod['created_at'], '%Y-%m-%dT%H:%M:%SZ')
                 item["pubDate"] = d.timetuple()
-                item["guid"] = vod['_id']
-                if vod["status"] == "recording":  # To show a different news item when recording is over
-                    item["guid"] += "_live"
+                item["guid"] = vod['id']
+                #if vod["status"] == "recording":  # To show a different news item when recording is over
+                #    item["guid"] += "_live"
                 feed.items.append(item)
     except KeyError as e:
         logging.warning('Issue with json: %s\nException: %s' % (vods_info, e))
