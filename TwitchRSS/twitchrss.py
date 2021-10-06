@@ -112,8 +112,7 @@ def get_inner(channel, add_live=True):
 
 @cached(cache=TTLCache(maxsize=3000, ttl=USERIDCACHE_LIFETIME))
 def fetch_user(channel_name):
-    data_json = fetch_json(channel_name, USERID_URL_TEMPLATE)
-    return data_json
+    return fetch_json(channel_name, USERID_URL_TEMPLATE)
 
 
 @cached(cache=TTLCache(maxsize=500, ttl=VODCACHE_LIFETIME))
@@ -173,22 +172,22 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
             for vod in vods_info:
                 item = {}
 
-                # @madiele: in twitch new API the current stream now it's not bundled in the same request
-                # maybe to be re-implemented later on
+                # It seems if the thumbnail is empty then we are live?
+                # Tempted to go in and fix it for them since the source is leaked..
+                if vod["thumbnail_url"] == '':
+                    if not add_live:
+                        continue
+                    link = "http://www.twitch.tv/%s" % channel_name
+                    item["title"] = "%s - LIVE" % vod['title']
+                    item["category"] = "live"
+                    item["description"] = "<a href=\"%s\">LIVE LINK</a>" % link
+                else:
+                    link = vod['url']
+                    item["title"] = vod['title']
+                    item["category"] = vod['type']
 
-                #if vod["status"] == "recording":
-                #    if not add_live:
-                #        continue
-                #    link = "http://www.twitch.tv/%s" % channel_name
-                #    item["title"] = "%s - LIVE" % vod['title']
-                #    item["category"] = "live"
-                #else:
-                link = vod['url']
-                item["title"] = vod['title']
-                item["category"] = vod['type']
-
-                item["link"] = link
-                item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['thumbnail_url'].replace("%{width}", "512").replace("%{height}","288"))
+                    item["link"] = link
+                    item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['thumbnail_url'].replace("%{width}", "512").replace("%{height}","288"))
 
                 #@madiele: for some reason the new API does not have the game field anymore...
                 #if vod.get('game'):
@@ -199,8 +198,8 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
                 d = datetime.datetime.strptime(vod['created_at'], '%Y-%m-%dT%H:%M:%SZ')
                 item["pubDate"] = d.timetuple()
                 item["guid"] = vod['id']
-                #if vod["status"] == "recording":  # To show a different news item when recording is over
-                #    item["guid"] += "_live"
+                if item["category"] == "live":  # To show a different news item when recording is over
+                    item["guid"] += "_live"
                 feed.items.append(item)
     except KeyError as e:
         logging.warning('Issue with json: %s\nException: %s' % (vods_info, e))
