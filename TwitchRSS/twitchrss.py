@@ -177,7 +177,7 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
                 if vod["thumbnail_url"] == '':
                     if not add_live:
                         continue
-                    link = "http://www.twitch.tv/%s" % channel_name
+                    link = "https://www.twitch.tv/%s" % channel_name
                     item["title"] = "%s - LIVE" % vod['title']
                     item["category"] = "live"
                     item["description"] = "<a href=\"%s\">LIVE LINK</a>" % link
@@ -185,9 +185,8 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
                     link = vod['url']
                     item["title"] = vod['title']
                     item["category"] = vod['type']
-
-                    item["link"] = link
                     item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['thumbnail_url'].replace("%{width}", "512").replace("%{height}","288"))
+                item["link"] = link
 
                 #@madiele: for some reason the new API does not have the game field anymore...
                 #if vod.get('game'):
