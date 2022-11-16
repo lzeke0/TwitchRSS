@@ -176,9 +176,9 @@ def _format_datetime(feed_type, time):
     time = _convert_datetime(time)
 
     # Then, convert that to the appropriate string
-    if feed_type is "rss2":
+    if feed_type == "rss2":
         return strftime("%a, %d %b %Y %H:%M:%S UT", time)
-    elif feed_type is "atom":
+    elif feed_type == "atom":
         return strftime("%Y-%m-%dT%H:%M:%S", time) + _get_tz_offset();
 
 def _atomise_link(link):
