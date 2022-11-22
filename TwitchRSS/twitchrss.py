@@ -174,7 +174,7 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
 
                 # It seems if the thumbnail is empty then we are live?
                 # Tempted to go in and fix it for them since the source is leaked..
-                if vod["thumbnail_url"] == '':
+                if vod["thumbnail_url"] == "https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png":
                     if not add_live:
                         continue
                     link = "https://www.twitch.tv/%s" % channel_name
