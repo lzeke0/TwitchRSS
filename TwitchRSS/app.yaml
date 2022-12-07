@@ -7,14 +7,6 @@ env_variables:
   TWITCH_CLIENT_SECRET: __INSERT_TWITCH_CLIENT_SECRET_HERE__
 
 handlers:
-- url: /favicon\.ico
-  static_files: favicon.ico
-  upload: favicon\.ico
-
-- url: /
-  static_files: index.html
-  upload: index\.html
-
 - url: /.+
   script: auto
 

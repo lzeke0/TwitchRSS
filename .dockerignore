@@ -1,0 +1,5 @@
+**/app.yaml
+**/.env
+**/.git
+**/__pycache__/
+**/env/
