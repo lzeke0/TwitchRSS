@@ -174,14 +174,13 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
 
                 # It seems if the thumbnail is empty then we are live?
                 # Tempted to go in and fix it for them since the source is leaked..
-                if vod["thumbnail_url"] == '':
+                if vod["thumbnail_url"] == "https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png":
                     if not add_live:
                         continue
                     link = "https://www.twitch.tv/%s" % channel_name
-                    item["title"] = "%s - LIVE" % vod['title']
+                    item["title"] = "LIVE 🔴 - %s" % vod['title'] # optional emoji, I find it easier to distinguish. Also starting with "LIVE" is clearer for me
                     item["category"] = "live"
-                    item["description"] = "<a href=\"%s\">LIVE LINK</a>" % link
-                else:
+item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['thumbnail_url'].replace("https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png", "https://static-cdn.jtvnw.net/previews-ttv/live_user_%s-512x288.jpg" % channel_name ))                else:
                     link = vod['url']
                     item["title"] = vod['title']
                     item["category"] = vod['type']
