@@ -44,7 +44,7 @@ if not TWITCH_CLIENT_SECRET:
     raise Exception("Twitch API secret env variable not set.")
 
 oauth = {'token': '', 'epoch': 0}
-app = Flask(__name__)
+app = Flask(__name__, static_folder='')
 
 def authorize():
     # return if token has not expired
@@ -71,6 +71,16 @@ def authorize():
             logging.warning("Fetch exception caught: %s" % e)
             retries += 1
     abort(503)
+    
+@app.route('/', methods=['GET'])
+def index():
+    return app.send_static_file('index.html')
+
+
+@app.route('/favicon.ico', methods=['GET'])
+def favicon():
+    return app.send_static_file('favicon.ico')
+
 
 @app.route('/vod/<string:channel>', methods=['GET', 'HEAD'])
 def vod(channel):
