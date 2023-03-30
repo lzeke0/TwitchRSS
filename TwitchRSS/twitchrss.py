@@ -71,7 +71,8 @@ def authorize():
             logging.warning("Fetch exception caught: %s" % e)
             retries += 1
     abort(503)
-    
+
+
 @app.route('/', methods=['GET'])
 def index():
     return app.send_static_file('index.html')
@@ -120,12 +121,12 @@ def get_inner(channel, add_live=True):
     return rss_data, headers
 
 
-@cached(cache=TTLCache(maxsize=3000, ttl=USERIDCACHE_LIFETIME))
+@cached(cache=TTLCache(maxsize=5000, ttl=USERIDCACHE_LIFETIME))
 def fetch_user(channel_name):
     return fetch_json(channel_name, USERID_URL_TEMPLATE)
 
 
-@cached(cache=TTLCache(maxsize=500, ttl=VODCACHE_LIFETIME))
+@cached(cache=TTLCache(maxsize=1000, ttl=VODCACHE_LIFETIME))
 def fetch_vods(channel_id):
     return fetch_json(channel_id, VOD_URL_TEMPLATE)
 
@@ -197,10 +198,6 @@ def construct_rss(channel_name, vods_info, display_name, add_live=True):
                     item["category"] = vod['type']
                     item["description"] = "<a href=\"%s\"><img src=\"%s\" /></a>" % (link, vod['thumbnail_url'].replace("%{width}", "512").replace("%{height}","288"))
                 item["link"] = link
-
-                #@madiele: for some reason the new API does not have the game field anymore...
-                #if vod.get('game'):
-                #    item["description"] += "<br/>" + vod['game']
 
                 if vod.get('description'):
                     item["description"] += "<br/>" + vod['description']
