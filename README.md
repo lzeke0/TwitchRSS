@@ -17,6 +17,10 @@ This service caches requests from twitch for 10 minutes meaning that you will on
 First you should set your own Twitch API client ID in the app.yaml.
 See how to deploy on [Google App Engine](https://cloud.google.com/appengine/docs/standard/python3).
 
+Alternatively you can use the provided Dockerfile to build a self hostable Docker image of your own.
+Set the environment parameters `HOST` and `PORT` to specify where the service should listen.
+Also set the environment variables `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` to your Twitch credentials.
+
 ### Other things
 The project uses a slightly modified [Feedformatter](https://code.google.com/p/feedformatter/) to support
 more tags and time zone in pubDate tag.
