@@ -130,20 +130,21 @@ def fetch_user(channel_name):
 
 @cached(cache=TTLCache(maxsize=1000, ttl=VODCACHE_LIFETIME))
 def fetch_vods(channel_id):
-    filter = request.args.get('filter')
-    if filter not in VALID_URL_ARGS:
-        filter = 'all'
-    if filter is None:
-        filter = 'all'
+    clipFilter = request.args.get('filter')
+    
+    if clipFilter not in VALID_URL_ARGS:
+        clipFilter = 'all'
+    if clipFilter is None:
+        clipFilter = 'all'
 
-    return fetch_json(channel_id, VOD_URL_TEMPLATE, filter)
+    return fetch_json(channel_id, VOD_URL_TEMPLATE, clipFilter)
 
 
 def fetch_json(id, url_template, clipFilter = None):
     #update the oauth token
     token = authorize()
     if clipFilter is not None:
-        url = url_template % (id, filter)
+        url = url_template % (id, clipFilter)
     else:
         url = url_template % id
 
