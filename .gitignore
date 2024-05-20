@@ -22,6 +22,8 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+TwitchRSS/app.yaml
+.env
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

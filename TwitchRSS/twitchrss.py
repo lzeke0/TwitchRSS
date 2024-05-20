@@ -28,7 +28,7 @@ import re
 import urllib
 
 
-VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=archive'
+VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=%s'
 USERID_URL_TEMPLATE = 'https://api.twitch.tv/helix/users?login=%s'
 AUTH_URL = 'https://id.twitch.tv/oauth2/token'
 VODCACHE_LIFETIME = 10 * 60
@@ -36,6 +36,8 @@ USERIDCACHE_LIFETIME = 24 * 60 * 60
 CHANNEL_FILTER = re.compile("^[a-zA-Z0-9_]{2,25}$")
 TWITCH_CLIENT_ID = environ.get("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = environ.get("TWITCH_CLIENT_SECRET")
+VALID_URL_ARGS = ('all', 'archive', 'highlight') #all is everything, archive is past broadcasts, highlight is stream highlight.
+
 logging.basicConfig(level=logging.DEBUG if environ.get('DEBUG') else logging.INFO)
 
 if not TWITCH_CLIENT_ID:
@@ -128,14 +130,24 @@ def fetch_user(channel_name):
 
 @cached(cache=TTLCache(maxsize=1000, ttl=VODCACHE_LIFETIME))
 def fetch_vods(channel_id):
-    return fetch_json(channel_id, VOD_URL_TEMPLATE)
+    filter = request.args.get('filter')
+    if filter not in VALID_URL_ARGS:
+        filter = 'all'
+    if filter is None:
+        filter = 'all'
+
+    return fetch_json(channel_id, VOD_URL_TEMPLATE, filter)
 
 
-def fetch_json(id, url_template):
+def fetch_json(id, url_template, clipFilter = None):
     #update the oauth token
     token = authorize()
+    if clipFilter is not None:
+        url = url_template % (id, filter)
+    else:
+        url = url_template % id
 
-    url = url_template % id
+
     headers = {
         'Authorization': 'Bearer ' + token,
         'Client-Id': TWITCH_CLIENT_ID,
