@@ -28,7 +28,7 @@ import re
 import urllib
 
 
-VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=all'
+VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=archive'
 USERID_URL_TEMPLATE = 'https://api.twitch.tv/helix/users?login=%s'
 AUTH_URL = 'https://id.twitch.tv/oauth2/token'
 VODCACHE_LIFETIME = 10 * 60
