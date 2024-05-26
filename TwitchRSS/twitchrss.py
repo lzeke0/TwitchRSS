@@ -16,7 +16,7 @@
 
 from cachetools import cached, TTLCache, LRUCache
 from feedformatter import Feed
-from flask import abort, Flask, request
+from flask import abort, Flask, request, redirect, url_for
 from io import BytesIO
 from os import environ
 import datetime
@@ -28,7 +28,7 @@ import re
 import urllib
 
 
-VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=all'
+VOD_URL_TEMPLATE = 'https://api.twitch.tv/helix/videos?user_id=%s&type=%s'
 USERID_URL_TEMPLATE = 'https://api.twitch.tv/helix/users?login=%s'
 AUTH_URL = 'https://id.twitch.tv/oauth2/token'
 VODCACHE_LIFETIME = 10 * 60
@@ -36,6 +36,8 @@ USERIDCACHE_LIFETIME = 24 * 60 * 60
 CHANNEL_FILTER = re.compile("^[a-zA-Z0-9_]{2,25}$")
 TWITCH_CLIENT_ID = environ.get("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = environ.get("TWITCH_CLIENT_SECRET")
+VALID_URL_ARGS = ('all', 'archive', 'highlight', 'live') #all is everything, archive is past broadcasts, highlight is stream highlight.
+
 logging.basicConfig(level=logging.DEBUG if environ.get('DEBUG') else logging.INFO)
 
 if not TWITCH_CLIENT_ID:
@@ -82,7 +84,6 @@ def index():
 def favicon():
     return app.send_static_file('favicon.ico')
 
-
 @app.route('/vod/<string:channel>', methods=['GET', 'HEAD'])
 def vod(channel):
     if CHANNEL_FILTER.match(channel):
@@ -106,7 +107,8 @@ def get_inner(channel, add_live=True):
 
     (channel_display_name, channel_id) = extract_userid(userid_json)
     logging.debug("Start fetching vods")
-    channel_json = fetch_vods(channel_id)
+    clip_filter = request.args.get('filter')
+    channel_json = fetch_vods(channel_id, clip_filter)
     if not channel_json:
         abort(404)
     logging.debug("Finish fetching vods")
@@ -127,15 +129,25 @@ def fetch_user(channel_name):
 
 
 @cached(cache=TTLCache(maxsize=1000, ttl=VODCACHE_LIFETIME))
-def fetch_vods(channel_id):
-    return fetch_json(channel_id, VOD_URL_TEMPLATE)
+def fetch_vods(channel_id, clip_filter):
+    
+    if clip_filter not in VALID_URL_ARGS:
+        clip_filter = 'all'
+    if clip_filter is None:
+        clip_filter = 'all'
+
+    return fetch_json(channel_id, VOD_URL_TEMPLATE, clip_filter)
 
 
-def fetch_json(id, url_template):
+def fetch_json(id, url_template, clip_filter = None):
     #update the oauth token
     token = authorize()
+    if clip_filter:
+        url = url_template % (id, clip_filter)
+    else:
+        url = url_template % id
 
-    url = url_template % id
+
     headers = {
         'Authorization': 'Bearer ' + token,
         'Client-Id': TWITCH_CLIENT_ID,
