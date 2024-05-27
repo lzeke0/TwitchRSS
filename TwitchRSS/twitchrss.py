@@ -16,7 +16,7 @@
 
 from cachetools import cached, TTLCache, LRUCache
 from feedformatter import Feed
-from flask import abort, Flask, request, redirect, url_for
+from flask import abort, Flask, request
 from io import BytesIO
 from os import environ
 import datetime
