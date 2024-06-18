@@ -5,5 +5,5 @@ gunicorn==22.0.0
 itsdangerous==2.1.2
 Jinja2==3.1.4
 MarkupSafe==2.1.1
-urllib3==1.26.18
+urllib3==1.26.19
 Werkzeug==3.0.3
